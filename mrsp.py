@@ -44,8 +44,13 @@ class MRSP():
     def set_variables(self):
         self.y = self.model.addVars(1, self.y_num, vtype=GRB.BINARY, name="y")
         self.z = self.model.addVars(1, self.z_num, vtype=GRB.BINARY, name="z")
-        self.pl = self.model.addVars(1, self.pn.branch_num, lb=-GRB.INFINITY,  ub=GRB.INFINITY, vtype=GRB.CONTINUOUS,
-                                     name="pl")
+
+        for i in range(self.pn.branch_num):
+            var_name = "pl[" + str(i) + "]"
+            x = self.model.addVar(lb=0, ub=self.pn.branch[i][5], vtype=GRB.CONTINUOUS, name=var_name)
+            self.pl.append(x)
+        # self.pl = self.model.addVars(1, self.pn.branch_num, lb=-GRB.INFINITY,  ub=GRB.INFINITY, vtype=GRB.CONTINUOUS,
+        #                              name="pl")
 
         for i in range(len(self.pn.gen)):
             var_name = "pv_gen[" + str(i) + "]"
@@ -71,7 +76,7 @@ class MRSP():
         """
         Constraint (2) in Model 2
         """
-        max_flow = 2850
+        max_flow = 1965.527380937
         constr2 = LinExpr()
         for i in range(self.pn.load_num):
             constr2 += self.pv_load[i]
@@ -80,7 +85,7 @@ class MRSP():
         """
         Constraint (3) in Model 2
         """
-        for i in range(self.node_num):
+        for i in range(self.y_num):
             if i not in list(self.damaged_node):
                 con_name = "Constraint 3" + str(i)
                 self.model.addConstr(self.y[0, i] == 1, name=con_name)
@@ -146,9 +151,9 @@ class MRSP():
             for index in gen_set:
                 expr += self.pv_gen[index]
             for index in li_set:
-                expr += self.pl[0, index]
+                expr += self.pl[index]
             for index in lo_set:
-                expr -= self.pl[0, index]
+                expr -= self.pl[index]
 
             con_name = "Constraint 7 " + str(i)
             self.model.addConstr(expr == 0, name=con_name)
@@ -160,6 +165,7 @@ class MRSP():
             con_name = "Constraint 8 gen " + str(i)
             self.model.addGenConstrIndicator(self.z[0, i + self.pn.bus_num], False,
                                              self.pv_gen[i] == 0, name=con_name)
+
         for i in range(self.pn.load_num):
             con_name = "Constraint 8 gen " + str(i)
             self.model.addGenConstrIndicator(self.z[0, i + self.pn.bus_num + self.pn.gen_num],
@@ -171,7 +177,7 @@ class MRSP():
         for i in range(self.pn.branch_num):
             con_name = "Constraint 9 " + str(i)
             self.model.addGenConstrIndicator(self.z[0, i + self.pn.bus_num + self.pn.gen_num + self.pn.load_num],
-                                             False, self.pl[0, i] == 0, name=con_name)
+                                             False, self.pl[i] == 0, name=con_name)
 
         """
         Constraint 10 and 11 in Model (1)
@@ -182,7 +188,7 @@ class MRSP():
                 to_bus = self.pn.branch[i][1] - 1
                 from_bus = self.pn.branch[i][0] - 1
                 self.model.addGenConstrIndicator(self.z[0, i + self.pn.bus_num + self.pn.gen_num + self.pn.load_num],
-                                                 True, self.pl[0, i] == self.pn.branch[i][4] * 100 *
+                                                 True, self.pl[i] == self.pn.branch[i][4] * 100 *
                                                  (self.theta[0, to_bus] - self.theta[0, from_bus]), name=con_name)
 
     def optimize(self):
@@ -195,7 +201,7 @@ class MRSP():
             self.y_value.append(var.x)
         # print(self.y_value)
         for i in range(len(self.y_value)):
-            if self.y_value[i] == 1 and i in self.damaged_node:
+            if self.y_value[i] >= (1 - 0.00000005) and i in self.damaged_node:
                 self.repair.append(i)
             else:
                 self.not_repair.append(i)
@@ -213,11 +219,57 @@ class MRSP():
         #     print(i)
         print(self.repair)
 
+    def display_z(self):
+        z_value = []
+        for i in range(self.z_num):
+            var_name = "z[0," + str(i) + "]"
+            var = self.model.getVarByName(var_name)
+            z_value.append(var.x)
+        print("z value:")
+        print(z_value)
+
+    def display_y(self):
+        y_value = []
+        for i in range(self.z_num):
+            var_name = "y[0," + str(i) + "]"
+            var = self.model.getVarByName(var_name)
+            y_value.append(var.x)
+        print("y value:")
+        print(y_value)
+
+    def display_pv_load(self):
+        pv_load_value = []
+        for i in range(self.pn.load_num):
+            var_name = "pv_load[" + str(i) + "]"
+            var = self.model.getVarByName(var_name)
+            pv_load_value.append(var.x)
+        print("stage 1 pv load:")
+        print(pv_load_value)
+
+    def display_pv_gen(self):
+        pv_gen_value = []
+        for i in range(self.pn.gen_num):
+            var_name = "pv_gen[" + str(i) + "]"
+            var = self.model.getVarByName(var_name)
+            pv_gen_value.append(var.x)
+        print("stage 1 pv gen:")
+        print(pv_gen_value)
+
+    def display_pl(self):
+        pl_value = []
+        for i in range(self.pn.branch_num):
+            var_name = "pl[" + str(i) + "]"
+            var = self.model.getVarByName(var_name)
+            pl_value.append(var.x)
+        print("stage 1 pl:")
+        print(pl_value)
+
+
 
 if __name__ == "__main__":
     pn = PN()
     # d_line = [0, 1]
-    d_node = [1, 2]
+    d_node = [1, 2, 3, 4, 13, 14, 15]
     # d_node = []
     opf = MRSP(pn, d_node)
     opf.display_repair()
