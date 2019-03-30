@@ -68,56 +68,6 @@ class PDRPPCCDT:
 
     def set_constraints(self):
         """
-        Constraint for t
-        """
-        # W- - W-
-        for i in range(self.w_num):
-            i_index = self.order[i]
-            for j in range(self.w_num):
-                j_index = self.order[j]
-                self.model.addConstr(self.t[i, j] == self.tn.travel_time[i_index][j_index])
-
-        # W+ - W+
-        for i in range(self.w_num):
-            i_index = self.order[i] + self.tn.w_num
-            for j in range(self.w_num):
-                j_index = self.order[j] + self.tn.w_num
-                self.model.addConstr(self.t[i + self.w_num, j + self.w_num] == self.tn.travel_time[i_index][j_index])
-
-        # H+ - H+ and H- - H-
-        for i in range(self.h_num * 2):
-            i_index = self.tn.w_num * 2 + i
-            for j in range(self.h_num * 2):
-                j_index = self.tn.w_num * 2 + j
-                self.model.addConstr(self.t[i + self.w])
-
-        # W- - W+
-        for i in range(self.w_num):
-            i_index = self.order[i]
-            for j in range(self.w_num):
-                j_index = self.order[j] + self.tn.w_num
-                self.model.addConstr(self.t[i, j + self.w_num] == self.tn.travel_time[i_index][j_index])
-                self.model.addConstr(self.t[j + self.w_num, i] == self.tn.travel_time[j_index][i_index])
-
-        for i in range(self.w_num):
-            i_index = self.order[i]
-            # W- - H+
-            for j in range(self.h_num):
-                j_index = self.tn.w_num * 2 + j
-                self.model.addConstr(self.t[i, j + self.w_num * 2] == self.tn.travel_time[i_index][j_index])
-                self.model.addConstr(self.t[j + self.w_num * 2, i] == self.tn.travel_time[j_index][i_index])
-            # W- - H-
-            for j in range(self.h_num):
-                j_index = self.tn.w_num * 2 + self.h_num + j
-                self.model.addConstr(self.t[i, j + self.w_num * 2 + self.h_num] ==
-                                     self.tn.travel_time[i_index][j_index])
-                self.model.addConstr(self.t[j + self.w_num * 2 + self.h_num, i] ==
-                                     self.tn.travel_time[j_index][i_index])
-
-
-
-
-        """
         Constraint (3) - (7)
         """
         for i in range(self.h_num):
@@ -173,6 +123,65 @@ class PDRPPCCDT:
                 value.append(var.x)
             print(value)
             t_value.append(value)
+
+    def set_t_variable_value(self):
+        """
+        Constraint for t
+        """
+        # W- - W-
+        for i in range(self.w_num):
+            i_index = self.order[i]
+            for j in range(self.w_num):
+                j_index = self.order[j]
+                self.model.addConstr(self.t[i, j] == self.tn.travel_time[i_index][j_index])
+
+        # W+ - W+
+        for i in range(self.w_num):
+            i_index = self.order[i] + self.tn.w_num
+            for j in range(self.w_num):
+                j_index = self.order[j] + self.tn.w_num
+                self.model.addConstr(self.t[i + self.w_num, j + self.w_num] == self.tn.travel_time[i_index][j_index])
+
+        # H+ - H+ and H- - H-
+        for i in range(self.h_num * 2):
+            i_index = self.tn.w_num * 2 + i
+            for j in range(self.h_num * 2):
+                j_index = self.tn.w_num * 2 + j
+                self.model.addConstr(self.t[i + self.w_num * 2, j + self.w_num * 2] ==
+                                     self.tn.travel_time[i_index][j_index])
+
+        # W- - W+
+        for i in range(self.w_num):
+            i_index = self.order[i]
+            for j in range(self.w_num):
+                j_index = self.order[j] + self.tn.w_num
+                self.model.addConstr(self.t[i, j + self.w_num] == self.tn.travel_time[i_index][j_index])
+                self.model.addConstr(self.t[j + self.w_num, i] == self.tn.travel_time[j_index][i_index])
+
+        for i in range(self.w_num):
+            i_index = self.order[i]
+            # W- - H+
+            for j in range(self.h_num):
+                j_index = self.tn.w_num * 2 + j
+                self.model.addConstr(self.t[i, j + self.w_num * 2] == self.tn.travel_time[i_index][j_index])
+                self.model.addConstr(self.t[j + self.w_num * 2, i] == self.tn.travel_time[j_index][i_index])
+            # W- - H-
+            for j in range(self.h_num):
+                j_index = self.tn.w_num * 2 + self.h_num + j
+                self.model.addConstr(self.t[i, j + self.w_num * 2 + self.h_num] ==
+                                     self.tn.travel_time[i_index][j_index])
+                self.model.addConstr(self.t[j + self.w_num * 2 + self.h_num, i] ==
+                                     self.tn.travel_time[j_index][i_index])
+
+        # W+ - H+ and W+ - H-
+        for i in range(self.w_num):
+            i_index = self.tn.w_num + self.order[i]
+            for j in range(2 * self.h_num):
+                j_index = self.tn.w_num * 2 + j
+                self.model.addConstr(self.t[self.w_num + i, self.w_num * 2 + j] ==
+                                     self.tn.travel_time[i_index][j_index])
+                self.model.addConstr(self.t[self.w_num * 2 + j, self.w_num + i] ==
+                                     self.tn.travel_time[j_index][i_index])
 
 
 if __name__ == "__main__":
