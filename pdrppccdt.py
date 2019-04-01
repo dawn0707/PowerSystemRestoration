@@ -31,13 +31,13 @@ class PDRPPCCDT:
         self.item_num = self.node_num + self.pn.branch_num
         self.tn_node_num = 2 * (self.tn.base_num + self.tn.w_num)
 
-        # self.sigma = []
         self.sigma_x = []
         self.ve = []
         self.load = []
         self.edt = []
         self.t = []
         self.s = []
+        self.d = []
 
         self.initialization()
 
@@ -53,7 +53,6 @@ class PDRPPCCDT:
         # W+    stockpiled node
         # H+    base station start
         # H-    base station return
-        # self.sigma = self.model.addVars(1, self.l_num, lb=0, ub=self.l_num - 1, vtype=GRB.INTEGER, name="sigma")
         self.sigma_x = self.model.addVars(self.l_num, self.l_num, vtype=GRB.BINARY, name="sigma_x")
         self.ve = self.model.addVars(1, self.l_num, lb=0, ub=self.vehicle.num - 1, vtype=GRB.INTEGER, name="ve")
         self.load = self.model.addVars(1, self.l_num, lb=0, ub=self.vehicle.capacity,
@@ -76,12 +75,23 @@ class PDRPPCCDT:
         """
         Constraint for sigma_x
         """
-        for i in range(self.l_num):
+        for i in range(self.l_num - self.h_num):
             self.model.addConstr(self.sigma_x[i, i] == 0)
             self.model.addConstr(quicksum(self.sigma_x[i, j] for j in range(self.l_num)) == 1)
-            if i in range(self.w_num * 2, self.w_num * 2 + self.h_num):
-                self.model.addConstr()
-            # self.model.addConstr(quicksum(self.sigma_x[j, i] for j in range(self.l_num)) == 1)
+
+        for i in range(self.w_num * 2):
+            self.model.addConstr(quicksum(self.sigma_x[j, i] for j in range(self.l_num)) == 1)
+        for i in range(self.w_num * 2, self.w_num * 2 + self.h_num):
+            self.model.addConstr(quicksum(self.sigma_x[i, j] for j in range(self.w_num * 2)) == 1)
+        for i in range(self.w_num * 2 + self.h_num, self.l_num):
+            for j in range(self.l_num):
+                self.model.addConstr(self.sigma_x[i, j] == 0)
+
+        """
+        Vehicle of H+ node
+        """
+        for i in range(self.vehicle.num):
+            self.model.addConstr(self.ve[0, i] == i)
 
         """
         Constraint (3) - (7)
@@ -93,7 +103,7 @@ class PDRPPCCDT:
             for j in range(self.l_num):
                 con_name = con_name + " " + str(j)
                 self.model.addGenConstrIndicator(self.sigma_x[index, j], True,
-                                                     self.ve[0, index] == self.ve[0, j], name=con_name)
+                                                 self.ve[0, index] == self.ve[0, j], name=con_name)
             # self.model.addConstr(self.ve[0, index] == self.ve[0, self.sigma[0, index]], name=con_name)
 
             con_name = "Constraint 4 " + str(i)
@@ -112,7 +122,7 @@ class PDRPPCCDT:
             for j in range(self.l_num):
                 con_name = con_name + " " + str(j)
                 self.model.addGenConstrIndicator(self.sigma_x[index, j], True,
-                                                 self.edt[0, j] == self.t[index, j] + self.s[0, j], name=con_name)
+                                                 self.edt[0, j] >= self.t[index, j] + self.s[0, j], name=con_name)
             # self.model.addConstr(self.edt[0, self.sigma[0, index]] == self.t[index, self.sigma[0, index]] +
             #                      self.s[0, self.sigma[0, index]], name=con_name)
 
@@ -155,7 +165,7 @@ class PDRPPCCDT:
             con_name = "Constraint 11 " + str(i)
             self.model.addConstr(self.ve[0, i] == self.ve[0, i + self.w_num], name=con_name)
             con_name = "Constraint 12 " + str(i)
-            self.model.addConstr(self.edt[0, i] <= self.edt[0, i + self.w_num], name=con_name)
+            self.model.addConstr(self.edt[0, i + self.w_num] <= self.edt[0, i], name=con_name)
 
         """
         Constraint (13)
@@ -163,6 +173,29 @@ class PDRPPCCDT:
         for i in range(self.w_num - 1):
             con_name = "Constraint 13 " + str(i)
             self.model.addConstr(self.edt[0, i] <= self.edt[0, i + 1], name=con_name)
+
+        self.sub_tour_elim()
+
+    def sub_tour_elim(self):
+        set_all = self.__private__subset()
+        for s in set_all:
+            expr = LinExpr()
+            for i in s:
+                for j in s:
+                    expr += self.sigma_x[i, j]
+            self.model.addConstr(expr <= len(s) - 1)
+
+
+    def __private__subset(self):
+        set_all = []
+        for i in range(2 ** self.l_num):
+            combo = []
+            for j in range(self.l_num):
+                if (i >> j) % 2 == 1:
+                    combo.append(j)
+            if len(combo) > 1:
+                set_all.append(combo)
+        return set_all
 
     def optimize(self):
         self.model.optimize()
@@ -323,7 +356,7 @@ if __name__ == "__main__":
     pn = PN()
     tn = TN(20, 2)
 
-    d_node = [1, 2, 3, 4, 13, 14, 15, 17, ]
+    d_node = [1, 2, 3, 4, 13, 14, 15, 17]
     # d_node = [0]
     stage1 = MRSP(pn, d_node)
 
@@ -339,12 +372,13 @@ if __name__ == "__main__":
 
     stage3 = PDRPPCCDT(pn, tn, order, vehicle)
     # stage3.display_t()
-    # stage3.display_s()
+    stage3.display_s()
     stage3.display_load()
     # stage3.display_sigma()
     stage3.display_sigma_x()
     stage3.display_vehicle()
     stage3.display_edt()
+    # stage3.subset()
 else:
     print("pdrppccdt is implemented into another module.")
 
