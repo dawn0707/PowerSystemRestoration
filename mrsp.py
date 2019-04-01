@@ -9,7 +9,7 @@ import math
 from gurobipy import *
 
 
-class MRSP():
+class MRSP:
 
     def __init__(self, pn, damaged_node):
         self.pn = pn
@@ -118,8 +118,8 @@ class MRSP():
         Constraint (6) in Model 1
         """
         for i in range(self.pn.branch_num):
-            bus_from = self.pn.branch[i][0] - 1
-            bus_to = self.pn.branch[i][1] - 1
+            bus_from = self.pn.branch[i][0]
+            bus_to = self.pn.branch[i][1]
             con_name = "Constraint 6 " + str(i)
             self.model.addGenConstrAnd(self.z[0, i + self.pn.bus_num + self.pn.gen_num + self.pn.load_num],
                                        [self.y[0, i + self.pn.bus_num + self.pn.gen_num + self.pn.load_num],
@@ -140,9 +140,9 @@ class MRSP():
             li_set = []
             lo_set = []
             for j in range(len(self.pn.branch)):
-                if self.pn.branch[j][0] - 1 == i:
+                if self.pn.branch[j][0] == i:
                     li_set.append(j)
-                if self.pn.branch[j][1] - 1 == i:
+                if self.pn.branch[j][1] == i:
                     lo_set.append(j)
 
             expr = LinExpr()
@@ -185,8 +185,8 @@ class MRSP():
         for i in range(self.pn.branch_num):
             if self.pn.branch[i][4] > 0:
                 con_name = "Constraint 10 " + str(i)
-                to_bus = self.pn.branch[i][1] - 1
-                from_bus = self.pn.branch[i][0] - 1
+                to_bus = self.pn.branch[i][1]
+                from_bus = self.pn.branch[i][0]
                 self.model.addGenConstrIndicator(self.z[0, i + self.pn.bus_num + self.pn.gen_num + self.pn.load_num],
                                                  True, self.pl[i] == self.pn.branch[i][4] * 100 *
                                                  (self.theta[0, to_bus] - self.theta[0, from_bus]), name=con_name)
@@ -265,12 +265,10 @@ class MRSP():
         print(pl_value)
 
 
-
 if __name__ == "__main__":
     pn = PN()
     # d_line = [0, 1]
-    d_node = [1, 2, 3, 4, 13, 14, 15]
-    # d_node = []
+    d_node = [1, 2, 3]
     opf = MRSP(pn, d_node)
     opf.display_repair()
     # print(opf.pn.bus_num)

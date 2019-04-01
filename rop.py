@@ -1,19 +1,23 @@
 # encoding: utf-8
 """
 @author: Chen Zhang
+@author: Juncheng Li
 @file: rop.py
 @time: 2019/3/17 17:03
 """
+
 from power_network import PN
 from mrsp import MRSP
 from gurobipy import *
 
-class ROP():
+
+class ROP:
 
     def __init__(self, pn, repair, damaged_node):
         self.pn = pn
         self.damaged_node = damaged_node
         self.repair = repair
+        self.order = []
 
         self.flow = []
         self.o = []
@@ -163,8 +167,8 @@ class ROP():
         Constraint (10) in Model 3
         """
         for i in range(self.pn.branch_num):
-            bus_from = self.pn.branch[i][0] - 1
-            bus_to = self.pn.branch[i][1] - 1
+            bus_from = self.pn.branch[i][0]
+            bus_to = self.pn.branch[i][1]
             for k in range(self.r_num):
                 con_name = "Constraint 10 " + str(i) + " " + str(k)
                 self.model.addGenConstrAnd(
@@ -187,9 +191,9 @@ class ROP():
             li_set = []
             lo_set = []
             for j in range(len(self.pn.branch)):
-                if self.pn.branch[j][0] - 1 == i:
+                if self.pn.branch[j][0] == i:
                     li_set.append(j)
-                if self.pn.branch[j][1] - 1 == i:
+                if self.pn.branch[j][1] == i:
                     lo_set.append(j)
 
             for k in range(self.r_num):
@@ -237,8 +241,8 @@ class ROP():
         """
         for i in range(self.pn.branch_num):
             if self.pn.branch[i][4] > 0:
-                to_bus = self.pn.branch[i][1] - 1
-                from_bus = self.pn.branch[i][0] - 1
+                to_bus = self.pn.branch[i][1]
+                from_bus = self.pn.branch[i][0]
                 for k in range(self.r_num):
                     con_name = "Constraint 13 " + str(i) + " " + str(k)
                     self.model.addGenConstrIndicator(
@@ -266,6 +270,7 @@ class ROP():
 
     def display_o(self):
         o_value = []
+        order_index = []
         for i in self.repair:
             value = []
             for j in range(self.r_num):
@@ -273,8 +278,12 @@ class ROP():
                 var = self.model.getVarByName(var_name)
                 value.append(var.x)
             o_value.append(value)
+            order_index.append(self.r_num - sum(value))
+        self.order = [x for (y, x) in sorted(zip(order_index, self.repair))]
         print("o value:")
         print(o_value)
+        print("order:")
+        print(self.order)
 
     def display_z(self):
         z_value = []
@@ -337,28 +346,29 @@ if __name__ == "__main__":
     # d_node = [0]
     stage1 = MRSP(pn, d_node)
 
-    # minimum_repair_set = stage1.repair
-    minimum_repair_set = [1, 14, 15]
+    minimum_repair_set = stage1.repair
+    # minimum_repair_set = [1, 14, 15]
     stage2 = ROP(pn, minimum_repair_set, d_node)
     stage1.display_repair()
     stage2.display_o()
-    y_sum = stage2.get_sum_y()
-    print("sum y:")
-    print(y_sum)
-    print(stage2.item_num)
-    stage1.display_z()
-    stage2.display_z()
-    stage1.display_y()
-    stage2.display_y()
-    stage1.display_pv_load()
-    stage2.display_pv_load()
-    stage1.display_pv_gen()
-    stage2.display_pv_gen()
-    stage1.display_pl()
-    stage2.display_pl()
-    print(stage2.pn.bus_num)
-    print(stage2.pn.gen_num)
-    print(stage2.pn.load_num)
+    print(stage2.order)
+    # y_sum = stage2.get_sum_y()
+    # print("sum y:")
+    # print(y_sum)
+    # print(stage2.item_num)
+    # stage1.display_z()
+    # stage2.display_z()
+    # stage1.display_y()
+    # stage2.display_y()
+    # stage1.display_pv_load()
+    # stage2.display_pv_load()
+    # stage1.display_pv_gen()
+    # stage2.display_pv_gen()
+    # stage1.display_pl()
+    # stage2.display_pl()
+    # print(stage2.pn.bus_num)
+    # print(stage2.pn.gen_num)
+    # print(stage2.pn.load_num)
 
 else:
     print("rop is implemented into another module.")

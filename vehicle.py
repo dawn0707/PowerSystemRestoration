@@ -8,5 +8,5 @@
 class VEHICLE:
 
     def __init__(self):
-        self.num = 1
-        self.capacity = 100
+        self.num = 2
+        self.capacity = 300
